@@ -25,9 +25,6 @@ jobs:
       # 4. Build the project
       - run: npm run build
 
-      # 4a. Copy 404.html for SPA routing
-      - run: cp public/404.html dist/404.html
-
       # 5. Deploy to GitHub Pages
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
