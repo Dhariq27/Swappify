@@ -5,7 +5,7 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: "./", // Use relative paths for GitHub Pages
+  base: "/Swappify-2.0/", // GitHub Pages base path - must match your repo name
   server: {
     host: "::",
     port: 8080,
