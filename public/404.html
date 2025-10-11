@@ -9,14 +9,14 @@
       var l = window.location;
       
       // For HashRouter, redirect to base path with hash
-      if (l.pathname !== '/Swappify-2.0/' && l.pathname !== '/Swappify-2.0/index.html') {
+      if (l.pathname !== '/Swappify/' && l.pathname !== '/Swappify/index.html') {
         var path = l.pathname.slice(1); // Remove leading slash
-        if (path.startsWith('Swappify-2.0/')) {
-          path = path.slice(14); // Remove 'Swappify-2.0/' prefix
+        if (path.startsWith('Swappify/')) {
+          path = path.slice(9); // Remove 'Swappify/' prefix
         }
-        l.replace(l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + '/Swappify-2.0/#/' + path + l.search + l.hash);
+        l.replace(l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + '/Swappify/#/' + path + l.search + l.hash);
       } else {
-        l.replace(l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + '/Swappify-2.0/');
+        l.replace(l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + '/Swappify/');
       }
     </script>
   </head>
