@@ -9,7 +9,11 @@ import {
   MapPin, 
   Clock, 
   MessageCircle, 
-  Heart 
+  Heart,
+  BadgeCheck,
+  Video,
+  Award,
+  FileText
 } from "lucide-react";
 
 interface SkillCardProps {
@@ -28,6 +32,10 @@ interface SkillCardProps {
     duration: string;
     difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
     isOnline: boolean;
+    is_verified?: boolean;
+    video_url?: string;
+    certificate_urls?: string[];
+    material_urls?: string[];
   };
 }
 
@@ -56,9 +64,17 @@ const SkillCard = ({ skill }: SkillCardProps) => {
     <Card className="card-hover group cursor-pointer">
       <CardHeader className="space-y-4">
         <div className="flex items-start justify-between">
-          <Badge variant="secondary" className="text-xs">
-            {skill.category}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-xs">
+              {skill.category}
+            </Badge>
+            {skill.is_verified && (
+              <Badge variant="default" className="text-xs bg-success/10 text-success border-success/20 gap-1">
+                <BadgeCheck className="h-3 w-3" />
+                Verified
+              </Badge>
+            )}
+          </div>
           <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
             <Heart className="h-4 w-4" />
           </Button>
@@ -135,6 +151,30 @@ const SkillCard = ({ skill }: SkillCardProps) => {
               )}
             </div>
           </div>
+
+          {/* Verification Badges */}
+          {(skill.video_url || skill.certificate_urls?.length || skill.material_urls?.length) && (
+            <div className="flex gap-2 pt-2 border-t border-border/50">
+              {skill.video_url && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Video className="h-3 w-3" />
+                  <span>Demo</span>
+                </div>
+              )}
+              {skill.certificate_urls && skill.certificate_urls.length > 0 && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Award className="h-3 w-3" />
+                  <span>{skill.certificate_urls.length} Cert{skill.certificate_urls.length > 1 ? 's' : ''}</span>
+                </div>
+              )}
+              {skill.material_urls && skill.material_urls.length > 0 && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <FileText className="h-3 w-3" />
+                  <span>Materials</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </CardContent>
 

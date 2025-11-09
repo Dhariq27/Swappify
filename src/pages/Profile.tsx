@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Navigation from "@/components/Navigation";
 import EditProfileDialog from "@/components/EditProfileDialog";
+import { CreateSkillDialog } from "@/components/CreateSkillDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -105,6 +106,7 @@ const Profile = () => {
                   </div>
                   
                   <div className="flex gap-2">
+                    <CreateSkillDialog onSkillCreated={() => window.location.reload()} />
                     <Button variant="outline" onClick={() => navigate('/chat')}>
                       <MessageCircle className="h-4 w-4 mr-2" />
                       Message

@@ -1,108 +1,78 @@
 import { useState, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import ChatInput from "@/components/ChatInput";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { mockChats } from "@/data/mockData";
+import { useRealtimeChat } from "@/hooks/useRealtimeChat";
 import { 
-  Send, 
   Search, 
   MoreVertical,
   Phone,
   Video,
   Info,
-  Paperclip,
-  Smile
+  MessageSquare
 } from "lucide-react";
 
 const Chat = () => {
-  const [selectedChat, setSelectedChat] = useState(mockChats[0]);
+  const {
+    conversations,
+    messages,
+    currentUserId,
+    loading,
+    fetchMessages,
+    sendMessage: sendMsg,
+  } = useRealtimeChat();
+
+  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [message, setMessage] = useState("");
-  const [chatMessages, setChatMessages] = useState([
-    {
-      id: '1',
-      sender: 'Sarah Johnson',
-      content: 'Hi! I saw your React development skills. I\'d love to exchange guitar lessons for some coding help!',
-      timestamp: '2024-01-15T09:00:00Z',
-      isOwn: false
-    },
-    {
-      id: '2',
-      sender: 'You',
-      content: 'That sounds amazing! I\'ve always wanted to learn guitar. What level of React help do you need?',
-      timestamp: '2024-01-15T09:05:00Z',
-      isOwn: true
-    },
-    {
-      id: '3',
-      sender: 'Sarah Johnson',
-      content: 'I\'m building a small portfolio website and need help with components and state management. Nothing too complex!',
-      timestamp: '2024-01-15T09:07:00Z',
-      isOwn: false
-    },
-    {
-      id: '4',
-      sender: 'You',
-      content: 'Perfect! I can definitely help with that. How about we start with 1-hour sessions each week?',
-      timestamp: '2024-01-15T09:10:00Z',
-      isOwn: true
-    },
-    {
-      id: '5',
-      sender: 'Sarah Johnson',
-      content: 'Sounds great! When would you like to start the guitar lessons?',
-      timestamp: '2024-01-15T10:30:00Z',
-      isOwn: false
-    }
-  ]);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // Real-time messaging with Supabase
+  // Auto-select first conversation
   useEffect(() => {
-    const channel = supabase
-      .channel('chat-messages')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages'
-        },
-        (payload) => {
-          const newMsg = payload.new as any;
-          setChatMessages(prev => [...prev, {
-            id: newMsg.id,
-            sender: newMsg.sender_id === 'current-user' ? 'You' : selectedChat.participant.name,
-            content: newMsg.content,
-            timestamp: newMsg.created_at,
-            isOwn: newMsg.sender_id === 'current-user'
-          }]);
-        }
-      )
-      .subscribe();
+    if (conversations.length > 0 && !selectedConversation) {
+      setSelectedConversation(conversations[0].id);
+    }
+  }, [conversations, selectedConversation]);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [selectedChat]);
+  // Fetch messages when conversation is selected
+  useEffect(() => {
+    if (selectedConversation) {
+      fetchMessages(selectedConversation);
+    }
+  }, [selectedConversation, fetchMessages]);
 
-  const handleSendMessage = () => {
-    if (message.trim()) {
-      const newMessage = {
-        id: Date.now().toString(),
-        sender: 'You',
-        content: message,
-        timestamp: new Date().toISOString(),
-        isOwn: true
-      };
-      setChatMessages([...chatMessages, newMessage]);
+  const handleSendMessage = async () => {
+    if (!selectedConversation || !message.trim()) return;
+
+    try {
+      await sendMsg(selectedConversation, message);
       setMessage("");
+    } catch (error) {
+      console.error("Failed to send message:", error);
     }
   };
+
+  const selectedConv = conversations.find(c => c.id === selectedConversation);
+  const currentMessages = selectedConversation ? messages[selectedConversation] || [] : [];
+
+  const filteredConversations = conversations.filter(conv => 
+    conv.participant_name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <div className="container mx-auto px-4 py-8 flex items-center justify-center h-[calc(100vh-200px)]">
+          <p className="text-muted-foreground">Loading conversations...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -125,56 +95,60 @@ const Chat = () => {
                   <Input 
                     placeholder="Search conversations..." 
                     className="pl-10"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
               </CardHeader>
               <CardContent className="p-0">
                 <ScrollArea className="h-[calc(100vh-340px)]">
-                  <div className="space-y-1 p-4">
-                    {mockChats.map(chat => (
-                      <div
-                        key={chat.id}
-                        onClick={() => setSelectedChat(chat)}
-                        className={`p-3 rounded-lg cursor-pointer transition-colors hover:bg-muted/50 ${
-                          selectedChat.id === chat.id ? 'bg-muted' : ''
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="relative">
+                  {filteredConversations.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-64 text-center p-4">
+                      <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">No conversations yet</p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Start chatting by proposing a skill swap!
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1 p-4">
+                      {filteredConversations.map(conv => (
+                        <div
+                          key={conv.id}
+                          onClick={() => setSelectedConversation(conv.id)}
+                          className={`p-3 rounded-lg cursor-pointer transition-colors hover:bg-muted/50 ${
+                            selectedConversation === conv.id ? 'bg-muted' : ''
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
                             <Avatar className="h-10 w-10">
-                              <AvatarImage src={chat.participant.avatar} alt={chat.participant.name} />
-                              <AvatarFallback>{chat.participant.name.charAt(0)}</AvatarFallback>
+                              <AvatarImage src={conv.participant_avatar} alt={conv.participant_name} />
+                              <AvatarFallback>{conv.participant_name.charAt(0).toUpperCase()}</AvatarFallback>
                             </Avatar>
-                            {chat.unreadCount > 0 && (
-                              <div className="absolute -top-1 -right-1 bg-accent text-accent-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                                {chat.unreadCount}
+                            
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-medium truncate">{conv.participant_name}</span>
+                                {conv.lastMessageTime && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {new Date(conv.lastMessageTime).toLocaleTimeString('en-US', { 
+                                      hour: 'numeric', 
+                                      minute: '2-digit' 
+                                    })}
+                                  </span>
+                                )}
                               </div>
-                            )}
-                          </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="font-medium truncate">{chat.participant.name}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(chat.timestamp).toLocaleTimeString('en-US', { 
-                                  hour: 'numeric', 
-                                  minute: '2-digit' 
-                                })}
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {chat.lastMessage}
-                            </p>
-                            <div className="flex gap-1 mt-1">
-                              <Badge variant="outline" className="text-xs">
-                                {chat.skillExchange.offered} ↔ {chat.skillExchange.wanted}
-                              </Badge>
+                              {conv.lastMessage && (
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {conv.lastMessage}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </ScrollArea>
               </CardContent>
             </Card>
@@ -182,76 +156,97 @@ const Chat = () => {
 
           {/* Chat Window */}
           <div className="lg:col-span-3">
-            <Card className="h-full flex flex-col">
-              {/* Chat Header */}
-              <CardHeader className="border-b border-border">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={selectedChat.participant.avatar} alt={selectedChat.participant.name} />
-                      <AvatarFallback>{selectedChat.participant.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <h3 className="font-semibold">{selectedChat.participant.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {selectedChat.skillExchange.offered} ↔ {selectedChat.skillExchange.wanted}
-                      </p>
+            {selectedConv ? (
+              <Card className="h-full flex flex-col">
+                {/* Chat Header */}
+                <CardHeader className="border-b border-border">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage 
+                          src={selectedConv.participant_avatar} 
+                          alt={selectedConv.participant_name} 
+                        />
+                        <AvatarFallback>
+                          {selectedConv.participant_name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="font-semibold">{selectedConv.participant_name}</h3>
+                        <p className="text-sm text-muted-foreground">Online</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm">
+                        <Phone className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm">
+                        <Video className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm">
+                        <Info className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm">
-                      <Phone className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Video className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Info className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
+                </CardHeader>
 
-              {/* Messages */}
-              <div className="flex-1 flex flex-col">
-                <ScrollArea className="flex-1 p-4">
-                  <div className="space-y-4">
-                    {chatMessages.map(msg => (
-                      <div
-                        key={msg.id}
-                        className={`flex ${msg.isOwn ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div className={`max-w-[70%] ${msg.isOwn ? 'order-2' : 'order-1'}`}>
-                          <div
-                            className={`p-3 rounded-2xl ${
-                              msg.isOwn
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted'
-                            }`}
-                          >
-                            <p className="text-sm">{msg.content}</p>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1 px-3">
-                            {new Date(msg.timestamp).toLocaleTimeString('en-US', {
-                              hour: 'numeric',
-                              minute: '2-digit'
-                            })}
-                          </p>
-                        </div>
+                {/* Messages */}
+                <div className="flex-1 flex flex-col">
+                  <ScrollArea className="flex-1 p-4">
+                    {currentMessages.length === 0 ? (
+                      <div className="flex items-center justify-center h-full">
+                        <p className="text-muted-foreground">No messages yet. Start the conversation!</p>
                       </div>
-                    ))}
-                  </div>
-                </ScrollArea>
+                    ) : (
+                      <div className="space-y-4">
+                        {currentMessages.map(msg => {
+                          const isOwn = msg.sender_id === currentUserId;
+                          return (
+                            <div
+                              key={msg.id}
+                              className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                            >
+                              <div className={`max-w-[70%]`}>
+                                <div
+                                  className={`p-3 rounded-2xl ${
+                                    isOwn
+                                      ? 'bg-primary text-primary-foreground'
+                                      : 'bg-muted'
+                                  }`}
+                                >
+                                  <p className="text-sm">{msg.content}</p>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1 px-3">
+                                  {new Date(msg.created_at).toLocaleTimeString('en-US', {
+                                    hour: 'numeric',
+                                    minute: '2-digit'
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </ScrollArea>
 
-                {/* Message Input */}
-                <ChatInput 
-                  message={message}
-                  setMessage={setMessage}
-                  onSendMessage={handleSendMessage}
-                />
-              </div>
-            </Card>
+                  {/* Message Input */}
+                  <ChatInput 
+                    message={message}
+                    setMessage={setMessage}
+                    onSendMessage={handleSendMessage}
+                  />
+                </div>
+              </Card>
+            ) : (
+              <Card className="h-full flex items-center justify-center">
+                <div className="text-center">
+                  <MessageSquare className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">Select a conversation to start chatting</p>
+                </div>
+              </Card>
+            )}
           </div>
         </div>
       </div>
