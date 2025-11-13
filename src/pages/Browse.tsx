@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { mockSkills, mockCategories } from "@/data/mockData";
 import { Search, Filter, SlidersHorizontal } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const Browse = () => {
   const [searchParams] = useSearchParams();
@@ -15,6 +17,8 @@ const Browse = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedDifficulty, setSelectedDifficulty] = useState("all");
   const [selectedLocation, setSelectedLocation] = useState("all");
+  const [skills, setSkills] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const category = searchParams.get('category');
@@ -23,9 +27,60 @@ const Browse = () => {
     }
   }, [searchParams]);
 
-  // For now, use mock skills since database skills don't have all required fields
-  // In the future, we'll transform database skills or update the SkillCard component
-  const skills = mockSkills;
+  useEffect(() => {
+    fetchSkills();
+  }, []);
+
+  const fetchSkills = async () => {
+    try {
+      setLoading(true);
+      const { data: skillsData, error } = await supabase
+        .from('skills')
+        .select(`
+          *,
+          profiles!skills_user_id_fkey (
+            id,
+            full_name,
+            avatar_url,
+            location
+          )
+        `)
+        .eq('is_active', true);
+
+      if (error) throw error;
+
+      // Transform database skills to match SkillCard format
+      const transformedSkills = skillsData?.map((skill: any) => ({
+        id: skill.id,
+        title: skill.title,
+        description: skill.description,
+        category: skill.category,
+        teacher: {
+          name: skill.profiles?.full_name || 'Anonymous',
+          avatar: skill.profiles?.avatar_url || '',
+          rating: 4.8, // TODO: Add ratings system
+          location: skill.profiles?.location || 'Unknown'
+        },
+        wantedSkills: [], // TODO: Add wanted skills field
+        duration: skill.duration_description || `${skill.duration_hours || 1} hours/week`,
+        difficulty: (skill.level || 'Beginner') as 'Beginner' | 'Intermediate' | 'Advanced',
+        isOnline: true,
+        is_verified: skill.is_verified || false,
+        video_url: skill.video_url || undefined,
+        certificate_urls: skill.certificate_urls || [],
+        material_urls: skill.material_urls || []
+      })) || [];
+
+      // Fallback to mock skills if no real skills exist
+      setSkills(transformedSkills.length > 0 ? transformedSkills : mockSkills);
+    } catch (error: any) {
+      console.error('Error fetching skills:', error);
+      toast.error('Failed to load skills');
+      setSkills(mockSkills); // Fallback to mock data
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredSkills = skills.filter(skill => {
     const matchesSearch = skill.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
