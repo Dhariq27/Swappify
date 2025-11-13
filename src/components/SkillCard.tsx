@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -13,8 +14,11 @@ import {
   BadgeCheck,
   Video,
   Award,
-  FileText
+  FileText,
+  ArrowRightLeft
 } from "lucide-react";
+import { ProposeSwapDialog } from "./ProposeSwapDialog";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SkillCardProps {
   skill: {
@@ -41,6 +45,29 @@ interface SkillCardProps {
 
 const SkillCard = ({ skill }: SkillCardProps) => {
   const navigate = useNavigate();
+  const [showProposeDialog, setShowProposeDialog] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isOwnSkill, setIsOwnSkill] = useState(false);
+
+  useEffect(() => {
+    checkCurrentUser();
+  }, [skill.id]);
+
+  const checkCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setCurrentUserId(user?.id || null);
+    
+    // Check if this is the user's own skill
+    if (user && skill.id) {
+      const { data } = await supabase
+        .from('skills')
+        .select('user_id')
+        .eq('id', skill.id)
+        .maybeSingle();
+      
+      setIsOwnSkill(data?.user_id === user.id);
+    }
+  };
   
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -52,8 +79,12 @@ const SkillCard = ({ skill }: SkillCardProps) => {
   };
 
   const handleProposeSwap = () => {
-    toast.success(`Swap request sent to ${skill.teacher.name}!`);
-    navigate('/chat');
+    if (!currentUserId) {
+      toast.error("Please sign in to propose a swap");
+      navigate('/auth');
+      return;
+    }
+    setShowProposeDialog(true);
   };
 
   const handleMessage = () => {
@@ -178,17 +209,45 @@ const SkillCard = ({ skill }: SkillCardProps) => {
         </div>
       </CardContent>
 
-      <CardFooter className="gap-2">
-        <Button 
-          className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
-          onClick={handleProposeSwap}
-        >
-          Propose Swap
-        </Button>
-        <Button variant="outline" size="icon" onClick={handleMessage}>
-          <MessageCircle className="h-4 w-4" />
-        </Button>
-      </CardFooter>
+      {!isOwnSkill && (
+        <CardFooter className="gap-2">
+          {currentUserId ? (
+            <>
+              <Button 
+                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                onClick={handleProposeSwap}
+              >
+                <ArrowRightLeft className="mr-2 h-4 w-4" />
+                Propose Swap
+              </Button>
+              <Button variant="outline" size="icon" onClick={handleMessage}>
+                <MessageCircle className="h-4 w-4" />
+              </Button>
+            </>
+          ) : (
+            <Button 
+              className="flex-1" 
+              variant="outline"
+              onClick={() => navigate('/auth')}
+            >
+              Sign in to Propose Swap
+            </Button>
+          )}
+        </CardFooter>
+      )}
+
+      {isOwnSkill && (
+        <CardFooter className="justify-center">
+          <p className="text-sm text-muted-foreground">This is your skill</p>
+        </CardFooter>
+      )}
+
+      <ProposeSwapDialog
+        open={showProposeDialog}
+        onOpenChange={setShowProposeDialog}
+        requestedSkillId={skill.id}
+        requestedSkillTitle={skill.title}
+      />
     </Card>
   );
 };
