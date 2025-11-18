@@ -6,8 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { mockSkills, mockCategories } from "@/data/mockData";
-import { Search, Filter, SlidersHorizontal } from "lucide-react";
+import { Search, Filter, SlidersHorizontal, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -18,7 +21,9 @@ const Browse = () => {
   const [selectedDifficulty, setSelectedDifficulty] = useState("all");
   const [selectedLocation, setSelectedLocation] = useState("all");
   const [skills, setSkills] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchType, setSearchType] = useState<"skills" | "users">("skills");
 
   useEffect(() => {
     const category = searchParams.get('category');
@@ -29,6 +34,7 @@ const Browse = () => {
 
   useEffect(() => {
     fetchSkills();
+    fetchUsers();
   }, []);
 
   const fetchSkills = async () => {
@@ -82,6 +88,21 @@ const Browse = () => {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const { data: usersData, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .limit(50);
+
+      if (error) throw error;
+      setUsers(usersData || []);
+    } catch (error: any) {
+      console.error('Error fetching users:', error);
+      toast.error('Failed to load users');
+    }
+  };
+
   const filteredSkills = skills.filter(skill => {
     const matchesSearch = skill.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          skill.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -92,6 +113,15 @@ const Browse = () => {
     return matchesSearch && matchesCategory && matchesDifficulty && matchesLocation;
   });
 
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.bio?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.location?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesLocation = selectedLocation === "all" || user.location?.includes(selectedLocation);
+    
+    return matchesSearch && matchesLocation;
+  });
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -100,11 +130,19 @@ const Browse = () => {
       <section className="py-12 bg-muted/30">
         <div className="container mx-auto px-4">
           <div className="text-center mb-8">
+            <Tabs value={searchType} onValueChange={(v) => setSearchType(v as "skills" | "users")} className="mb-6">
+              <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+                <TabsTrigger value="skills">Search Skills</TabsTrigger>
+                <TabsTrigger value="users">Search Users</TabsTrigger>
+              </TabsList>
+            </Tabs>
             <h1 className="text-4xl font-bold mb-4">
-              Browse Skills
+              {searchType === "skills" ? "Browse Skills" : "Find People"}
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Discover amazing skills from our community of learners and teachers
+              {searchType === "skills" 
+                ? "Discover amazing skills from our community of learners and teachers"
+                : "Connect with other members of the community"}
             </p>
           </div>
           
@@ -113,7 +151,7 @@ const Browse = () => {
             <div className="relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
               <Input 
-                placeholder="Search for skills, technologies, hobbies..." 
+                placeholder={searchType === "skills" ? "Search for skills, technologies, hobbies..." : "Search by name, bio, or location..."} 
                 className="pl-12 h-12 text-lg bg-background border-border"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -217,7 +255,9 @@ const Browse = () => {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-2xl font-semibold">
-                    {filteredSkills.length} Skills Found
+                    {searchType === "skills" 
+                      ? `${filteredSkills.length} Skills Found` 
+                      : `${filteredUsers.length} Users Found`}
                   </h2>
                   <p className="text-muted-foreground">
                     {searchTerm && `Results for "${searchTerm}"`}
@@ -233,32 +273,83 @@ const Browse = () => {
                 </div>
               </div>
 
-              {/* Skills Grid */}
-              {filteredSkills.length > 0 ? (
-                <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {filteredSkills.map(skill => (
-                    <SkillCard key={skill.id} skill={skill} />
-                  ))}
-                </div>
+              {/* Results Grid */}
+              {searchType === "skills" ? (
+                filteredSkills.length > 0 ? (
+                  <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {filteredSkills.map(skill => (
+                      <SkillCard key={skill.id} skill={skill} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">🔍</div>
+                    <h3 className="text-xl font-semibold mb-2">No skills found</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Try adjusting your search criteria or explore different categories
+                    </p>
+                    <Button 
+                      variant="outline"
+                      onClick={() => {
+                        setSearchTerm("");
+                        setSelectedCategory("all");
+                        setSelectedDifficulty("all");
+                        setSelectedLocation("all");
+                      }}
+                    >
+                      Clear All Filters
+                    </Button>
+                  </div>
+                )
               ) : (
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-4">🔍</div>
-                  <h3 className="text-xl font-semibold mb-2">No skills found</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Try adjusting your search criteria or explore different categories
-                  </p>
-                  <Button 
-                    variant="outline"
-                    onClick={() => {
-                      setSearchTerm("");
-                      setSelectedCategory("all");
-                      setSelectedDifficulty("all");
-                      setSelectedLocation("all");
-                    }}
-                  >
-                    Clear All Filters
-                  </Button>
-                </div>
+                filteredUsers.length > 0 ? (
+                  <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {filteredUsers.map((user) => (
+                      <Card key={user.id} className="hover:shadow-lg transition-shadow">
+                        <CardContent className="p-6">
+                          <div className="flex items-start gap-4">
+                            <Avatar className="h-16 w-16">
+                              <AvatarImage src={user.avatar_url} alt={user.full_name} />
+                              <AvatarFallback>{user.full_name?.charAt(0) || 'U'}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-lg mb-1 truncate">{user.full_name}</h3>
+                              {user.location && (
+                                <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
+                                  <MapPin className="h-4 w-4" />
+                                  <span>{user.location}</span>
+                                </div>
+                              )}
+                              {user.bio && (
+                                <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{user.bio}</p>
+                              )}
+                              <Button variant="outline" size="sm" className="w-full">
+                                View Profile
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">👥</div>
+                    <h3 className="text-xl font-semibold mb-2">No users found</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Try adjusting your search criteria
+                    </p>
+                    <Button 
+                      variant="outline"
+                      onClick={() => {
+                        setSearchTerm("");
+                        setSelectedLocation("all");
+                      }}
+                    >
+                      Clear All Filters
+                    </Button>
+                  </div>
+                )
               )}
             </div>
           </div>
