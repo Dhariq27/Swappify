@@ -8,6 +8,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Users, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
+import { z } from "zod";
+
+const signInSchema = z.object({
+  email: z.string().email("Invalid email address").max(255, "Email too long"),
+  password: z.string().min(1, "Password is required"),
+});
+
+const signUpSchema = z.object({
+  email: z.string().email("Invalid email address").max(255, "Email too long"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(100, "Password too long")
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password must contain uppercase, lowercase, and number"),
+  fullName: z.string().trim().min(2, "Name must be at least 2 characters").max(100, "Name too long"),
+});
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -57,20 +73,36 @@ const Auth = () => {
 
     try {
       if (isLogin) {
+        const validation = signInSchema.safeParse({ email, password });
+        if (!validation.success) {
+          const errors = validation.error.errors.map((e) => e.message).join(", ");
+          toast.error(errors);
+          setLoading(false);
+          return;
+        }
+        
         const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+          email: validation.data.email,
+          password: validation.data.password,
         });
         if (error) throw error;
         toast.success("Welcome back!");
       } else {
+        const validation = signUpSchema.safeParse({ email, password, fullName });
+        if (!validation.success) {
+          const errors = validation.error.errors.map((e) => e.message).join(", ");
+          toast.error(errors);
+          setLoading(false);
+          return;
+        }
+        
         const { error } = await supabase.auth.signUp({
-          email,
-          password,
+          email: validation.data.email,
+          password: validation.data.password,
           options: {
             emailRedirectTo: `${window.location.origin}/`,
             data: {
-              full_name: fullName,
+              full_name: validation.data.fullName,
             }
           }
         });
@@ -134,11 +166,10 @@ const Auth = () => {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
+                  placeholder={isLogin ? "••••••••" : "Min 8 chars, uppercase, lowercase & number"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={6}
                   className="pr-10"
                 />
                 <Button

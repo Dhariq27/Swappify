@@ -91,7 +91,7 @@ const Browse = () => {
   const fetchUsers = async () => {
     try {
       const { data: usersData, error } = await supabase
-        .from('profiles')
+        .from('profiles_public')
         .select('*')
         .limit(50);
 

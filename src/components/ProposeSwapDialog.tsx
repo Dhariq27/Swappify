@@ -79,6 +79,12 @@ export const ProposeSwapDialog = ({
       return;
     }
 
+    const MAX_MESSAGE_LENGTH = 2000;
+    if (message.trim().length > MAX_MESSAGE_LENGTH) {
+      toast.error(`Message too long. Maximum ${MAX_MESSAGE_LENGTH} characters.`);
+      return;
+    }
+
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
