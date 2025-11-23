@@ -6,6 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
+import { z } from "zod";
+
+const emailSchema = z.object({
+  email: z.string().email("Invalid email address").max(255, "Email too long"),
+});
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
@@ -17,8 +22,16 @@ const ForgotPassword = () => {
     setLoading(true);
 
     try {
+      const validation = emailSchema.safeParse({ email });
+      if (!validation.success) {
+        const errors = validation.error.errors.map((e) => e.message).join(", ");
+        toast.error(errors);
+        setLoading(false);
+        return;
+      }
+
       const redirectUrl = `${window.location.origin}/Swappify/#/reset-password`;
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(validation.data.email, {
         redirectTo: redirectUrl,
       });
 

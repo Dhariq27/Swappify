@@ -6,6 +6,19 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
+import { z } from "zod";
+
+const resetPasswordSchema = z.object({
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(100, "Password too long")
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password must contain uppercase, lowercase, and number"),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -17,22 +30,19 @@ const ResetPassword = () => {
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (password !== confirmPassword) {
-      toast.error("Passwords don't match");
-      return;
-    }
-
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return;
-    }
-
     setLoading(true);
 
     try {
+      const validation = resetPasswordSchema.safeParse({ password, confirmPassword });
+      if (!validation.success) {
+        const errors = validation.error.errors.map((e) => e.message).join(", ");
+        toast.error(errors);
+        setLoading(false);
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({
-        password: password
+        password: validation.data.password,
       });
 
       if (error) throw error;
@@ -61,11 +71,10 @@ const ResetPassword = () => {
               <div className="relative">
                 <Input
                   type={showPassword ? "text" : "password"}
-                  placeholder="New Password"
+                  placeholder="Min 8 chars, uppercase, lowercase & number"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={6}
                   className="pr-10"
                 />
                 <Button
@@ -91,7 +100,6 @@ const ResetPassword = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  minLength={6}
                   className="pr-10"
                 />
                 <Button

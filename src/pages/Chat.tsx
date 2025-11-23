@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRealtimeChat } from "@/hooks/useRealtimeChat";
+import { toast } from "sonner";
 import { 
   Search, 
   MoreVertical,
@@ -47,6 +48,12 @@ const Chat = () => {
 
   const handleSendMessage = async () => {
     if (!selectedConversation || !message.trim()) return;
+
+    const MAX_MESSAGE_LENGTH = 2000;
+    if (message.trim().length > MAX_MESSAGE_LENGTH) {
+      toast.error(`Message too long. Maximum ${MAX_MESSAGE_LENGTH} characters.`);
+      return;
+    }
 
     try {
       await sendMsg(selectedConversation, message);

@@ -39,6 +39,32 @@ export const CreateSkillDialog = ({ onSkillCreated }: { onSkillCreated?: () => v
         return;
       }
 
+      // File size validation
+      const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+      const MAX_DOC_SIZE = 5 * 1024 * 1024;    // 5MB
+
+      if (videoFile && videoFile.size > MAX_VIDEO_SIZE) {
+        toast.error("Video file too large. Maximum 50MB allowed.");
+        setLoading(false);
+        return;
+      }
+
+      for (const file of certificateFiles) {
+        if (file.size > MAX_DOC_SIZE) {
+          toast.error(`Certificate file "${file.name}" too large. Maximum 5MB per file.`);
+          setLoading(false);
+          return;
+        }
+      }
+
+      for (const file of materialFiles) {
+        if (file.size > MAX_DOC_SIZE) {
+          toast.error(`Material file "${file.name}" too large. Maximum 5MB per file.`);
+          setLoading(false);
+          return;
+        }
+      }
+
       let videoUrl = null;
       let certificateUrls: string[] = [];
       let materialUrls: string[] = [];
