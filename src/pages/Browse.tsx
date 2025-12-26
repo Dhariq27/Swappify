@@ -24,6 +24,15 @@ const Browse = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchType, setSearchType] = useState<"skills" | "users">("skills");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id || null);
+    };
+    getUser();
+  }, []);
 
   useEffect(() => {
     const category = searchParams.get('category');
@@ -35,7 +44,7 @@ const Browse = () => {
   useEffect(() => {
     fetchSkills();
     fetchUsers();
-  }, []);
+  }, [currentUserId]);
 
   const fetchSkills = async () => {
     try {
@@ -90,10 +99,17 @@ const Browse = () => {
 
   const fetchUsers = async () => {
     try {
-      const { data: usersData, error } = await supabase
+      let query = supabase
         .from('profiles_public')
         .select('*')
         .limit(50);
+      
+      // Exclude current user from results
+      if (currentUserId) {
+        query = query.neq('id', currentUserId);
+      }
+
+      const { data: usersData, error } = await query;
 
       if (error) throw error;
       setUsers(usersData || []);

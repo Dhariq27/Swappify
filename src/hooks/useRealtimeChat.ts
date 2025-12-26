@@ -40,16 +40,18 @@ export const useRealtimeChat = () => {
     if (!currentUserId) return;
 
     try {
-      // Get all barter requests where user is involved
+      // Get all barter requests where user is involved (as requester or skill owner)
       const { data: barterRequests, error } = await supabase
         .from('barter_requests')
         .select(`
           id,
           requester_id,
           requested_skill_id,
+          offered_skill_id,
+          status,
+          updated_at,
           skills!barter_requests_requested_skill_id_fkey(user_id)
         `)
-        .or(`requester_id.eq.${currentUserId},skills.user_id.eq.${currentUserId}`)
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
@@ -58,15 +60,20 @@ export const useRealtimeChat = () => {
       const convList: Conversation[] = [];
       
       for (const request of barterRequests || []) {
-        const otherUserId = request.requester_id === currentUserId 
-          ? request.skills?.user_id 
-          : request.requester_id;
+        // Determine if user is requester or skill owner
+        const isRequester = request.requester_id === currentUserId;
+        const isSkillOwner = request.skills?.user_id === currentUserId;
+        
+        // Skip if user is not involved
+        if (!isRequester && !isSkillOwner) continue;
+        
+        const otherUserId = isRequester ? request.skills?.user_id : request.requester_id;
 
         if (!otherUserId) continue;
 
-        // Get other user profile
+        // Get other user profile using profiles_public
         const { data: profile } = await supabase
-          .from('profiles')
+          .from('profiles_public')
           .select('id, full_name, avatar_url')
           .eq('id', otherUserId)
           .single();
@@ -84,7 +91,7 @@ export const useRealtimeChat = () => {
           convList.push({
             id: request.id,
             participant_id: profile.id,
-            participant_name: profile.full_name,
+            participant_name: profile.full_name || 'Unknown User',
             participant_avatar: profile.avatar_url || '',
             lastMessage: lastMsg?.content,
             lastMessageTime: lastMsg?.created_at,
@@ -200,7 +207,7 @@ export const useRealtimeChat = () => {
 
     // Subscribe to new messages
     const messagesChannel = supabase
-      .channel('messages-changes')
+      .channel('messages-realtime')
       .on(
         'postgres_changes',
         {
@@ -212,21 +219,30 @@ export const useRealtimeChat = () => {
           const newMessage = payload.new as any;
           const requestId = newMessage.barter_request_id;
           if (requestId) {
-            setMessages(prev => ({
-              ...prev,
-              [requestId]: [
-                ...(prev[requestId] || []),
-                newMessage,
-              ],
-            }));
+            // Add message to state if not already present
+            setMessages(prev => {
+              const existingMessages = prev[requestId] || [];
+              const messageExists = existingMessages.some(m => m.id === newMessage.id);
+              if (messageExists) return prev;
+              
+              return {
+                ...prev,
+                [requestId]: [...existingMessages, newMessage],
+              };
+            });
+            
+            // Refresh conversations to update last message
+            fetchConversations();
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Messages channel status:', status);
+      });
 
     // Subscribe to barter request updates
     const barterChannel = supabase
-      .channel('barter-changes')
+      .channel('barter-realtime')
       .on(
         'postgres_changes',
         {
@@ -236,7 +252,9 @@ export const useRealtimeChat = () => {
         },
         () => fetchConversations()
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Barter channel status:', status);
+      });
 
     return () => {
       supabase.removeChannel(messagesChannel);

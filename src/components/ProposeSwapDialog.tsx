@@ -109,6 +109,21 @@ export const ProposeSwapDialog = ({
 
       if (barterError) throw barterError;
 
+      // Send an initial message if provided
+      if (message.trim()) {
+        const { error: msgError } = await supabase
+          .from('messages')
+          .insert({
+            barter_request_id: barterRequest.id,
+            sender_id: user.id,
+            content: message.trim()
+          });
+        
+        if (msgError) {
+          console.error('Error sending initial message:', msgError);
+        }
+      }
+
       toast.success("Swap proposal sent! Opening chat...");
       
       // Navigate to chat with the new conversation
