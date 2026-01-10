@@ -1,0 +1,108 @@
+/* Root layout */
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+  font-family: 'Poppins', sans-serif;
+  color: hsl(45 10% 95%);
+  background: hsl(30 20% 10%);
+}
+
+/* Logo styling */
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter, transform;
+  transition: all 0.4s ease;
+  filter: drop-shadow(0 0 5px hsl(45 100% 60% / 0.6));
+  cursor: pointer;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 20px hsl(45 100% 70% / 0.8)) drop-shadow(0 0 40px hsl(45 100% 70% / 0.6));
+  transform: scale(1.05) rotate(3deg);
+}
+
+/* Logo spin animation */
+@keyframes logo-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+/* Cards styling */
+.card {
+  background: linear-gradient(145deg, hsl(30 25% 15%), hsl(30 20% 12%));
+  padding: 2rem;
+  margin: 1rem 0;
+  border-radius: 1rem;
+  box-shadow: 0 8px 20px hsl(0 0% 0% / 0.5);
+  transition: all 0.4s ease;
+}
+.card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 0 30px hsl(45 100% 60% / 0.7), 0 8px 25px hsl(0 0% 0% / 0.5);
+}
+
+/* Read the docs text */
+.read-the-docs {
+  color: hsl(45 10% 80%);
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+.read-the-docs:hover {
+  color: hsl(45 100% 60%);
+}
+
+/* Buttons globally */
+button,
+.btn {
+  @apply px-6 py-3 font-bold rounded-full text-lg cursor-pointer;
+  background: hsl(45 100% 50%);
+  color: hsl(0 0% 10%);
+  border: 2px solid hsl(45 100% 50%);
+  box-shadow: 0 0 15px hsl(45 100% 60% / 0.6);
+  transition: all 0.3s ease-in-out;
+}
+button:hover,
+.btn:hover {
+  background: hsl(45 100% 70%);
+  box-shadow: 0 0 25px hsl(45 100% 70% / 0.8), 0 0 40px hsl(45 100% 70% / 0.6);
+  transform: scale(1.05);
+}
+
+/* Responsive text and layout */
+@media (max-width: 768px) {
+  #root {
+    padding: 1rem;
+  }
+  .logo {
+    height: 4.5em;
+    padding: 1rem;
+  }
+  .card {
+    padding: 1.5rem;
+  }
+}
+
+/* Animations for app elements */
+.animate-fade-in {
+  animation: fade-in 0.8s ease-out forwards;
+}
+.animate-slide-up {
+  animation: slide-up 0.8s ease-out forwards;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
